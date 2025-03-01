@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
-import { Download, Upload, Globe, Laptop, Smartphone, Tablet, Monitor, Watch, ChevronRight } from "lucide-react"
+import { Download, Upload, Globe, Monitor, Smartphone, ChevronRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import DeviceMockup from "@/components/device-mockup"
@@ -18,6 +18,9 @@ import { Tabs as TabsComponent } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import html2canvas from "html2canvas"
 import { fetchWithProxy } from "@/components/cors-proxy"
+// import { captureWebsiteScreenshot } from "@/lib/screenshot"
+import { captureWebsiteScreenshot } from "@/lib/screenshot"
+import { toast } from "@/components/ui/use-toast"
 
 // Predefined gradients
 const PRESET_GRADIENTS = [
@@ -60,7 +63,7 @@ const PRESETS = [
   {
     id: "modern-portfolio",
     name: "Modern Portfolio",
-    devices: { macbook: true, iphone: true, ipad: false, imac: false, android: false, desktop: false, watch: false },
+    devices: { desktop: true, mobile: true, ipad: false, imac: false, android: false, watch: false },
     layout: "angled",
     background: "linear-gradient(to right, #4299e1, #667eea)",
     scale: 90,
@@ -69,7 +72,7 @@ const PRESETS = [
   {
     id: "product-showcase",
     name: "Product Showcase",
-    devices: { macbook: true, iphone: true, ipad: true, imac: false, android: false, desktop: false, watch: false },
+    devices: { desktop: true, mobile: true, ipad: true, imac: false, android: false, watch: false },
     layout: "showcase",
     background: "#f7fafc",
     scale: 100,
@@ -78,7 +81,7 @@ const PRESETS = [
   {
     id: "app-presentation",
     name: "App Presentation",
-    devices: { macbook: false, iphone: true, ipad: false, imac: false, android: true, desktop: false, watch: false },
+    devices: { desktop: false, mobile: true, ipad: false, imac: false, android: true, watch: false },
     layout: "floating",
     background: "linear-gradient(to right, #9f7aea, #ed64a6)",
     scale: 110,
@@ -87,7 +90,7 @@ const PRESETS = [
   {
     id: "tech-ecosystem",
     name: "Tech Ecosystem",
-    devices: { macbook: true, iphone: true, ipad: true, imac: true, android: false, desktop: false, watch: true },
+    devices: { desktop: true, mobile: true, ipad: true, imac: true, android: false, watch: true },
     layout: "grid",
     background: "#1a202c",
     scale: 80,
@@ -96,7 +99,7 @@ const PRESETS = [
   {
     id: "minimal",
     name: "Minimal",
-    devices: { macbook: true, iphone: false, ipad: false, imac: false, android: false, desktop: false, watch: false },
+    devices: { desktop: true, mobile: false, ipad: false, imac: false, android: false, watch: false },
     layout: "horizontal",
     background: "#ffffff",
     scale: 100,
@@ -110,13 +113,8 @@ export default function MockupGenerator() {
   const [imageUrl, setImageUrl] = useState("")
   const [layout, setLayout] = useState<string>("angled")
   const [devices, setDevices] = useState({
-    macbook: true,
-    ipad: true,
-    iphone: true,
-    imac: false,
-    android: false,
-    desktop: false,
-    watch: false,
+    desktop: true,
+    mobile: false,
   })
   const [background, setBackground] = useState("#f3f4f6")
   const [backgroundType, setBackgroundType] = useState<"solid" | "gradient">("solid")
@@ -130,6 +128,9 @@ export default function MockupGenerator() {
   const mockupRef = useRef<HTMLDivElement>(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const [processedUrl, setProcessedUrl] = useState("/placeholder.svg")
+  const [mobileProcessedUrl, setMobileProcessedUrl] = useState("/placeholder.svg")
+  const [isCapturing, setIsCapturing] = useState(false)
+  const [captureError, setCaptureError] = useState<string | null>(null)
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -345,20 +346,43 @@ export default function MockupGenerator() {
             setUrl(urlToProcess)
           }
 
-          // Set the processed URL
-          setProcessedUrl(urlToProcess)
+          // Start capture
+          setIsCapturing(true)
+          setCaptureError(null)
+
+          // Capture both desktop and mobile screenshots
+          const [desktopScreenshot, mobileScreenshot] = await Promise.all([
+            captureWebsiteScreenshot(urlToProcess, false),
+            captureWebsiteScreenshot(urlToProcess, true),
+          ])
+
+          setProcessedUrl(desktopScreenshot)
+          setMobileProcessedUrl(mobileScreenshot)
         } catch (error) {
           console.error("Error processing URL:", error)
+          setCaptureError("Failed to capture website screenshot")
           setProcessedUrl("/placeholder.svg")
+          setMobileProcessedUrl("/placeholder.svg")
+          toast({
+            title: "Error",
+            description: "Failed to capture website screenshot. Please try again.",
+            variant: "destructive",
+          })
+        } finally {
+          setIsCapturing(false)
         }
       } else if (inputType === "image" && imageUrl) {
         setProcessedUrl(imageUrl)
+        setMobileProcessedUrl(imageUrl)
       } else {
         setProcessedUrl("/placeholder.svg")
+        setMobileProcessedUrl("/placeholder.svg")
       }
     }
 
-    processUrl()
+    if (url !== "https://example.com") {
+      processUrl()
+    }
   }, [url, imageUrl, inputType])
 
   return (
@@ -385,8 +409,12 @@ export default function MockupGenerator() {
             {Object.entries(devices).map(([deviceType, isActive], index) => {
               if (!isActive) return null
               return (
-                <div key={deviceType} style={getDevicePositionStyle(deviceType, index)}>
-                  <DeviceMockup type={deviceType as any} url={processedUrl} layout={layout} />
+                <div key={deviceType}  style={getDevicePositionStyle(deviceType, index)}>
+                  <DeviceMockup
+                    type={deviceType as any}
+                    url={deviceType === "mobile" ? mobileProcessedUrl : processedUrl}
+                    layout={layout}
+                  />
                 </div>
               )
             })}
@@ -413,18 +441,34 @@ export default function MockupGenerator() {
                   <TabsContent value="url" className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="url">Website URL</Label>
-                      <div className="flex space-x-2">
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault()
+                          const formData = new FormData(e.currentTarget)
+                          const newUrl = formData.get("url") as string
+                          if (newUrl) {
+                            setUrl(newUrl)
+                          }
+                        }}
+                        className="flex space-x-2"
+                      >
                         <Input
                           id="url"
+                          name="url"
                           placeholder="https://example.com"
-                          value={url}
-                          onChange={(e) => setUrl(e.target.value)}
+                          defaultValue={url}
+                          disabled={isCapturing}
                         />
-                        <Button onClick={getDisplayUrl} variant="outline" size="icon">
-                          <Globe className="h-4 w-4" />
+                        <Button type="submit" variant="outline" size="icon" disabled={isCapturing}>
+                          {isCapturing ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          ) : (
+                            <Globe className="h-4 w-4" />
+                          )}
                         </Button>
-                      </div>
+                      </form>
                     </div>
+                    {captureError && <p className="text-sm text-destructive">{captureError}</p>}
                   </TabsContent>
                   <TabsContent value="image" className="space-y-4">
                     <div className="space-y-2">
@@ -462,53 +506,6 @@ export default function MockupGenerator() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="macbook"
-                      checked={devices.macbook}
-                      onCheckedChange={() => handleDeviceChange("macbook")}
-                    />
-                    <Label htmlFor="macbook" className="flex items-center">
-                      <Laptop className="mr-2 h-4 w-4" />
-                      MacBook
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="imac" checked={devices.imac} onCheckedChange={() => handleDeviceChange("imac")} />
-                    <Label htmlFor="imac" className="flex items-center">
-                      <Monitor className="mr-2 h-4 w-4" />
-                      iMac
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="ipad" checked={devices.ipad} onCheckedChange={() => handleDeviceChange("ipad")} />
-                    <Label htmlFor="ipad" className="flex items-center">
-                      <Tablet className="mr-2 h-4 w-4" />
-                      iPad
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="iphone"
-                      checked={devices.iphone}
-                      onCheckedChange={() => handleDeviceChange("iphone")}
-                    />
-                    <Label htmlFor="iphone" className="flex items-center">
-                      <Smartphone className="mr-2 h-4 w-4" />
-                      iPhone
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="android"
-                      checked={devices.android}
-                      onCheckedChange={() => handleDeviceChange("android")}
-                    />
-                    <Label htmlFor="android" className="flex items-center">
-                      <Smartphone className="mr-2 h-4 w-4" />
-                      Android
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
                       id="desktop"
                       checked={devices.desktop}
                       onCheckedChange={() => handleDeviceChange("desktop")}
@@ -519,10 +516,14 @@ export default function MockupGenerator() {
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Checkbox id="watch" checked={devices.watch} onCheckedChange={() => handleDeviceChange("watch")} />
-                    <Label htmlFor="watch" className="flex items-center">
-                      <Watch className="mr-2 h-4 w-4" />
-                      Watch
+                    <Checkbox
+                      id="mobile"
+                      checked={devices.mobile}
+                      onCheckedChange={() => handleDeviceChange("mobile")}
+                    />
+                    <Label htmlFor="mobile" className="flex items-center">
+                      <Smartphone className="mr-2 h-4 w-4" />
+                      Mobile
                     </Label>
                   </div>
                 </div>
