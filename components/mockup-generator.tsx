@@ -409,7 +409,7 @@ export default function MockupGenerator() {
             {Object.entries(devices).map(([deviceType, isActive], index) => {
               if (!isActive) return null
               return (
-                <div key={deviceType}  style={getDevicePositionStyle(deviceType, index)}>
+                <div key={deviceType}   style={getDevicePositionStyle(deviceType, index)}>
                   <DeviceMockup
                     type={deviceType as any}
                     url={deviceType === "mobile" ? mobileProcessedUrl : processedUrl}
