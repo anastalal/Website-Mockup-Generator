@@ -232,7 +232,7 @@ export default function MockupGenerator() {
     }
   }
 
-  const getDevicePositionStyle = (deviceType: string, index: number) => {
+  const getDevicePositionStyle = (deviceType: string, index: number): React.CSSProperties => {
     const activeDevices = Object.entries(devices).filter(([_, isActive]) => isActive).length
     const angle = (360 / activeDevices) * index
     const radius = 200
@@ -409,7 +409,7 @@ export default function MockupGenerator() {
             {Object.entries(devices).map(([deviceType, isActive], index) => {
               if (!isActive) return null
               return (
-                <div key={deviceType}   style={getDevicePositionStyle(deviceType, index)}>
+                <div key={deviceType} style={getDevicePositionStyle(deviceType, index)}>
                   <DeviceMockup
                     type={deviceType as any}
                     url={deviceType === "mobile" ? mobileProcessedUrl : processedUrl}
