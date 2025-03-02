@@ -27,7 +27,7 @@ export async function POST(request: Request) {
             defaultViewport: chromium.defaultViewport,
             executablePath: await chromium.executablePath(),
             headless: chromium.headless,
-            // ignoreHTTPSErrors: true,
+            ignoreHTTPSErrors: true,
             // executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         });
 
