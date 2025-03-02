@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-// import puppeteer from 'puppeteer-core';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
+// import puppeteer from 'puppeteer';
 
 const validURL = (str: string): boolean => {
     const pattern = new RegExp('^(https?:\\/\\/)?' +
@@ -22,7 +23,11 @@ export async function POST(request: Request) {
     let browser = null;
     try {
         browser = await puppeteer.launch({
-            headless: "new",
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
+            // ignoreHTTPSErrors: true,
             // executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         });
 
